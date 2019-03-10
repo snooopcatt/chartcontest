@@ -1,0 +1,24 @@
+.c-line {
+    fill: none;
+    stroke-width: 1px;
+}
+
+.preview .c-line {
+    stroke-width: 10px;
+}
+
+.c-anchor-line {
+    stroke-width: .6px;
+    stroke: lightgray;
+}
+
+#main {
+    width: 800px;
+    height: 400px;
+}
+
+.view-frame {
+    fill: none;
+    stroke: black;
+    stroke-width: 10px;
+}
