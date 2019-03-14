@@ -133,24 +133,19 @@ export default class Plot {
         return element;
     }
 
-    renderAnchorLines() {
-        let maxValue = this.getMaxValue('y');
-        let step = Math.ceil(maxValue / this.anchorCount);
+    //#region Canvas
 
-        return [...Array(this.anchorCount).keys()].map((i) => {
-            // return this.renderAnchorLine((i + 1) * step);
-            const value = (i + 1) * step;
-            return this.renderLine({
-                x1: 0,
-                x2: this.chartWidth,
-                y1: this.chartHeight - value,
-                y2: this.chartHeight - value,
-                cls: `c-anchor-line c-anchor-line-${i + 1}`
-            });
-        });
+    createCanvas({ width, height, chartWidth, chartHeight, chartX = 0, cls }) {
+        const element = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        element.setAttribute('width', width);
+        element.setAttribute('height', height);
+        element.setAttribute('viewBox', `${chartX} 0 ${chartWidth} ${chartHeight}`);
+        element.setAttribute('class', cls || '');
+
+        return element;
     }
 
-    renderLegend() {
+    createLegendCanvas() {
         const canvas = this.createCanvas({
             width: this.chartWidth,
             height: this.chartHeight,
@@ -162,10 +157,7 @@ export default class Plot {
         let maxValue = this.getMaxValue('y');
         let step = Math.ceil(maxValue / this.anchorCount);
 
-        // const lines = this.renderAnchorLines();
-        // lines.forEach(l => canvas.appendChild(l));
         [...Array(this.anchorCount).keys()].map((i) => {
-            // return this.renderAnchorLine((i + 1) * step);
             const
                 value = (i + 1) * step,
                 y = this.chartHeight - value;
@@ -198,15 +190,37 @@ export default class Plot {
         return canvas;
     }
 
-    createCanvas({ width, height, chartWidth, chartHeight, chartX = 0, cls }) {
-        const element = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        element.setAttribute('width', width);
-        element.setAttribute('height', height);
-        element.setAttribute('viewBox', `${chartX} 0 ${chartWidth} ${chartHeight}`);
-        element.setAttribute('class', cls || '');
+    createPreviewCanvas() {
+        const
+            width = this.chartWidth,
+            height = this.previewHeight,
+            element = this.createCanvas({
+                width,
+                height,
+                chartWidth: this.totalWidth,
+                chartHeight: this.chartHeight
+            });
+
+        element.setAttribute('preserveAspectRatio', 'none');
 
         return element;
     }
+
+    createMainCanvas() {
+        const
+            width = this.chartWidth,
+            height = this.chartHeight;
+
+        return this.createCanvas({
+            width,
+            height,
+            chartX: this.totalWidth - width,
+            chartWidth: width,
+            chartHeight: height
+        });
+    }
+
+    //#endregion    
 
     render() {
         if (!this.container) {
@@ -214,19 +228,11 @@ export default class Plot {
         }
 
         const
-            width = this.chartWidth,
-            previewHeight = 50,
             height = this.chartHeight,
             i = this.lines.values(),
-            previewCanvas = this.createPreviewCanvas({ width, height: previewHeight}),
-            legendCanvas = this.renderLegend(),
-            mainCanvas = this.createCanvas({
-                width,
-                height,
-                chartX: this.totalWidth - width,
-                chartWidth: width,
-                chartHeight: height
-            }),
+            previewCanvas = this.createPreviewCanvas(),
+            legendCanvas = this.createLegendCanvas(),
+            mainCanvas = this.createMainCanvas(),
             xAxis = this.buildXAxis();
 
         let result = i.next();
@@ -244,27 +250,5 @@ export default class Plot {
         this.container.appendChild(previewCanvas);
 
         this.rendered = true;
-    }
-
-    createPreviewCanvas({ width, height }) {
-        const element = this.createCanvas({
-            width,
-            height,
-            chartWidth: this.totalWidth,
-            chartHeight: this.getMaxValue('y')
-        });
-
-        element.setAttribute('preserveAspectRatio', 'none');
-
-        const viewFrame = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        viewFrame.setAttribute('x', this.totalWidth - width);
-        viewFrame.setAttribute('y', 0);
-        viewFrame.setAttribute('width', width);
-        viewFrame.setAttribute('height', this.getMaxValue('y'));
-        viewFrame.setAttribute('class', 'view-frame');
-
-        element.appendChild(viewFrame);
-
-        return element;
     }
 }
