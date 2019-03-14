@@ -3,8 +3,14 @@
     stroke-width: 1px;
 }
 
-.preview .c-line {
-    stroke-width: 10px;
+.c-preview {
+    /* border: 1px solid gainsboro; */
+    position: absolute;
+    bottom: 0;
+    right: 0;
+}
+.c-preview .c-line {
+    stroke-width: 5px;
 }
 
 .c-anchor-line {
@@ -20,12 +26,7 @@
 #main {
     width: 800px;
     height: 400px;
-}
-
-.view-frame {
-    fill: none;
-    stroke: black;
-    stroke-width: 10px;
+    position: relative;
 }
 
 .c-legend-canvas {
@@ -36,4 +37,27 @@
 .c-anchor-label {
     font-size: 14px;
     opacity: 0.5;
+}
+
+.c-preview-frame {
+    /* border: 1px solid black; */
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+}
+
+.c-preview-frame .frame {
+    border: 1px solid gray;
+    border-left-width: 4px;
+    border-right-width: 4px;
+    background: transparent;
+    flex: 1;
+}
+
+.c-preview-frame .filler {
+    background-color: gray;
+    opacity: .3;
 }

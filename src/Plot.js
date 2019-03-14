@@ -1,4 +1,5 @@
 import Line from './Line';
+import PreviewDrag from './PreviewDrag';
 
 export default class Plot {
     static generateId() {
@@ -137,6 +138,7 @@ export default class Plot {
 
     createCanvas({ width, height, chartWidth, chartHeight, chartX = 0, cls }) {
         const element = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        // element.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
         element.setAttribute('width', width);
         element.setAttribute('height', height);
         element.setAttribute('viewBox', `${chartX} 0 ${chartWidth} ${chartHeight}`);
@@ -190,22 +192,6 @@ export default class Plot {
         return canvas;
     }
 
-    createPreviewCanvas() {
-        const
-            width = this.chartWidth,
-            height = this.previewHeight,
-            element = this.createCanvas({
-                width,
-                height,
-                chartWidth: this.totalWidth,
-                chartHeight: this.chartHeight
-            });
-
-        element.setAttribute('preserveAspectRatio', 'none');
-
-        return element;
-    }
-
     createMainCanvas() {
         const
             width = this.chartWidth,
@@ -220,7 +206,69 @@ export default class Plot {
         });
     }
 
+    createPreviewCanvas() {
+        const
+            width = this.chartWidth,
+            height = this.previewHeight,
+            element = this.createCanvas({
+                width,
+                height,
+                chartWidth: this.totalWidth,
+                chartHeight: this.chartHeight,
+                cls: 'c-preview'
+            });
+
+        element.setAttribute('preserveAspectRatio', 'none');
+
+        return element;
+    }
+
+    createPreviewFrame() {
+        const previewCanvas = this.container.querySelector('.c-preview');
+
+        if (previewCanvas) {
+            let element = document.createElement('div');
+                
+            element.setAttribute('class', 'c-preview-frame');
+            element.setAttribute('style', `height:${this.previewHeight}px;`);
+
+            element.innerHTML = `<div class="filler filler-left" style="width:80%"></div>
+            <div class="frame"></div>
+            <div class="filler filler-right"></div>`;
+
+            element = this.container.appendChild(element);
+
+            this.previewDrag = new PreviewDrag({ 
+                target : element,
+                onEndDrag : this.onEndDrag.bind(this),
+                onMove : this.onMove.bind(this)
+            });
+        }
+    }
+
     //#endregion    
+
+    //#region Events
+    onEndDrag() {
+        let frameElement = this.container.querySelector('.c-preview-frame'),
+            leftFiller = this.container.querySelector('.filler-left'),
+            rightFiller = this.container.querySelector('.filler-right'),
+            frameElWidth = frameElement.offsetWidth,
+            scale = Math.round(this.totalWidth / frameElWidth),
+            leftWidth = leftFiller.offsetWidth,
+            chartScrollX = leftWidth * scale,
+            chartWidth = (frameElWidth - chartScrollX - rightFiller.offsetWidth) * scale;
+
+        
+        // this.
+    }
+
+    onMove({ left, right, width }) {
+        let scale = Math.round(this.totalWidth / width);
+
+        this.showChartAt(left * scale, (width - left - right) * scale);
+    }
+    //#endregion
 
     render() {
         if (!this.container) {
@@ -230,9 +278,9 @@ export default class Plot {
         const
             height = this.chartHeight,
             i = this.lines.values(),
-            previewCanvas = this.createPreviewCanvas(),
-            legendCanvas = this.createLegendCanvas(),
-            mainCanvas = this.createMainCanvas(),
+            previewCanvas = this.previewCanvas = this.createPreviewCanvas(),
+            legendCanvas = this.legendCanvas = this.createLegendCanvas(),
+            mainCanvas = this.mainCanvas = this.createMainCanvas(),
             xAxis = this.buildXAxis();
 
         let result = i.next();
@@ -244,11 +292,16 @@ export default class Plot {
             result = i.next();
         }
 
-        previewCanvas.setAttribute('class', 'preview');
         this.container.appendChild(legendCanvas);
         this.container.appendChild(mainCanvas);
         this.container.appendChild(previewCanvas);
 
+        this.createPreviewFrame();
+
         this.rendered = true;
+    }
+
+    showChartAt(scrollX, width) {
+        this.mainCanvas.viewBox.baseVal.x = scrollX;
     }
 }
