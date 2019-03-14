@@ -60,6 +60,8 @@ export default class Plot {
         return this.lines.values();
     }
 
+    //#region Chart dimensions
+
     get totalWidth() {
         return this.tickWidth * (this.columns.length - 1);
     }
@@ -75,6 +77,28 @@ export default class Plot {
         }
     }
 
+    get previewHeight() {
+        return 50;
+    }
+
+    get chartHeight() {
+        if (this._cachedChartHeight) {
+            return this._cachedChartHeight;
+        }
+
+        return this._cachedChartHeight = this.container.offsetHeight - this.previewHeight;
+    }
+
+    get chartWidth() {
+        if (this._cachedChartWidth) {
+            return this._cachedChartWidth;
+        }
+
+        return this._cachedChartWidth = this.container.offsetWidth;
+    }
+
+    //#endregion
+
     getMaxValue(axis = 'x') {
         const iterator = this[axis === 'x' ? 'maxXValues' : 'maxYValues'].values();
         let result, maxValue = 0;
@@ -86,15 +110,27 @@ export default class Plot {
         return maxValue;
     }
 
-    renderAnchorLine(value) {
+    renderLine(config = {}) {
         const lineElement = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        lineElement.setAttribute('class', 'c-anchor-line');
-        lineElement.setAttribute('x1', 0);
-        lineElement.setAttribute('x2', this.totalWidth);
-        lineElement.setAttribute('y1', value);
-        lineElement.setAttribute('y2', value);
+        lineElement.setAttribute('class', config.cls || '');
+        lineElement.setAttribute('x1', config.x1);
+        lineElement.setAttribute('x2', config.x2);
+        lineElement.setAttribute('y1', config.y1);
+        lineElement.setAttribute('y2', config.y2);
 
         return lineElement;
+    }
+
+    renderLabel({ x, y, text, cls }) {
+        const element = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+
+        element.setAttribute('x', x);
+        element.setAttribute('y', y);
+        element.setAttribute('class', cls);
+
+        element.innerHTML = text;
+
+        return element;
     }
 
     renderAnchorLines() {
@@ -102,21 +138,72 @@ export default class Plot {
         let step = Math.ceil(maxValue / this.anchorCount);
 
         return [...Array(this.anchorCount).keys()].map((i) => {
-            return this.renderAnchorLine((i + 1) * step);
+            // return this.renderAnchorLine((i + 1) * step);
+            const value = (i + 1) * step;
+            return this.renderLine({
+                x1: 0,
+                x2: this.chartWidth,
+                y1: this.chartHeight - value,
+                y2: this.chartHeight - value,
+                cls: `c-anchor-line c-anchor-line-${i + 1}`
+            });
         });
     }
 
-    renderLegend(canvas) {
-        const lines = this.renderAnchorLines();
+    renderLegend() {
+        const canvas = this.createCanvas({
+            width: this.chartWidth,
+            height: this.chartHeight,
+            chartWidth: this.chartWidth,
+            chartHeight: this.chartHeight,
+            cls: 'c-legend-canvas'
+        });
 
-        lines.forEach(l => canvas.appendChild(l));
+        let maxValue = this.getMaxValue('y');
+        let step = Math.ceil(maxValue / this.anchorCount);
+
+        // const lines = this.renderAnchorLines();
+        // lines.forEach(l => canvas.appendChild(l));
+        [...Array(this.anchorCount).keys()].map((i) => {
+            // return this.renderAnchorLine((i + 1) * step);
+            const
+                value = (i + 1) * step,
+                y = this.chartHeight - value;
+
+            canvas.appendChild(this.renderLine({
+                x1: 0,
+                x2: this.chartWidth,
+                y1: y,
+                y2: y,
+                cls: `c-anchor-line c-anchor-line-${i + 1}`
+            }));
+
+            canvas.appendChild(this.renderLabel({
+                x: 0,
+                y: y - 10,
+                text: value,
+                cls: `c-anchor-label c-anchor-label-${i + 1}`
+            }));
+        });
+
+        const xAxis = this.renderLine({
+            x1: 0,
+            x2: this.chartWidth,
+            y1: this.chartHeight,
+            y2: this.chartHeight,
+            cls: 'c-axis-line'
+        });
+        canvas.appendChild(xAxis);
+
+        return canvas;
     }
 
-    createCanvas({ width, height, chartWidth, chartHeight, chartX = 0 }) {
+    createCanvas({ width, height, chartWidth, chartHeight, chartX = 0, cls }) {
         const element = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         element.setAttribute('width', width);
         element.setAttribute('height', height);
         element.setAttribute('viewBox', `${chartX} 0 ${chartWidth} ${chartHeight}`);
+        element.setAttribute('class', cls || '');
 
         return element;
     }
@@ -127,36 +214,34 @@ export default class Plot {
         }
 
         const
-            width = this.container.offsetWidth,
+            width = this.chartWidth,
             previewHeight = 50,
-            height = this.container.offsetHeight - previewHeight,
+            height = this.chartHeight,
             i = this.lines.values(),
             previewCanvas = this.createPreviewCanvas({ width, height: previewHeight}),
+            legendCanvas = this.renderLegend(),
             mainCanvas = this.createCanvas({
                 width,
                 height,
                 chartX: this.totalWidth - width,
                 chartWidth: width,
-                chartHeight: this.getMaxValue('y')
+                chartHeight: height
             }),
             xAxis = this.buildXAxis();
 
         let result = i.next();
 
-        this.renderLegend(mainCanvas);
-
         while (!result.done) {
-            const line = result.value.render(xAxis);
+            const line = result.value.render(xAxis, height);
             mainCanvas.appendChild(line),
             previewCanvas.appendChild(line.cloneNode());
             result = i.next();
         }
 
         previewCanvas.setAttribute('class', 'preview');
+        this.container.appendChild(legendCanvas);
         this.container.appendChild(mainCanvas);
         this.container.appendChild(previewCanvas);
-
-
 
         this.rendered = true;
     }

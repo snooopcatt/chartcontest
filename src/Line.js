@@ -10,14 +10,14 @@ export default class Line {
         this.points = points;
     }
 
-    render(axis) {
+    render(axis, height) {
         if (axis.length !== this.points.length) {
             // eslint-disable-next-line no-console
             console.warn('x axis has incorrect size');
         }
         let lineElement = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
 
-        const points = this.points.map((value, i) => `${axis[i]},${value}`).join(' ');
+        const points = this.points.map((value, i) => `${axis[i]},${height-value}`).join(' ');
         lineElement.setAttribute('points', points);
         
         lineElement.setAttribute('style', `stroke: ${this.color};`);
