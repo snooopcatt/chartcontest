@@ -1,4 +1,4 @@
-import Plot from './Plot';
+import Plot from './Plot.js';
 
 const xhr = new XMLHttpRequest();
 

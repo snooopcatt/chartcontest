@@ -1,5 +1,5 @@
-import Line from './Line';
-import PreviewDrag from './PreviewDrag';
+import Line from './Line.js';
+import PreviewDrag from './PreviewDrag.js';
 
 export default class Plot {
     static generateId() {
@@ -12,6 +12,9 @@ export default class Plot {
         this.maxXValues = new Map();
         this.id = Plot.generateId();
 
+        this.linesCacheMain = new Map();
+        this.linesCachePrev = new Map();
+
         if (config.appendTo instanceof HTMLElement) {
             this.container = config.appendTo;
         }
@@ -21,7 +24,7 @@ export default class Plot {
 
         this.anchorCount = 5;
         this.rendered = false;
-        this._tickWidth = 30;
+        this.tickWidth = 50;
 
         const chart = config.chart;
 
@@ -67,21 +70,13 @@ export default class Plot {
         return this.tickWidth * (this.columns.length - 1);
     }
 
-    get tickWidth() {
-        return this._tickWidth;
-    }
-
-    set tickWidth(value) {
-        this._tickWidth = value;
-        if (this.rendered) {
-            // this.refresh();
-        }
-    }
-
     get previewHeight() {
         return 50;
     }
 
+    /**
+     * Returns height of the chart portion of the plot (total height - preview height)
+     */
     get chartHeight() {
         if (this._cachedChartHeight) {
             return this._cachedChartHeight;
@@ -90,6 +85,9 @@ export default class Plot {
         return this._cachedChartHeight = this.container.offsetHeight - this.previewHeight;
     }
 
+    /**
+     * Returns chart width (container width)
+     */
     get chartWidth() {
         if (this._cachedChartWidth) {
             return this._cachedChartWidth;
@@ -99,7 +97,9 @@ export default class Plot {
     }
 
     //#endregion
-
+    
+    //#region Canvas/Rendering
+    
     getMaxValue(axis = 'x') {
         const iterator = this[axis === 'x' ? 'maxXValues' : 'maxYValues'].values();
         let result, maxValue = 0;
@@ -133,8 +133,6 @@ export default class Plot {
 
         return element;
     }
-
-    //#region Canvas
 
     createCanvas({ width, height, chartWidth, chartHeight, chartX = 0, cls }) {
         const element = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -195,15 +193,18 @@ export default class Plot {
     createMainCanvas() {
         const
             width = this.chartWidth,
-            height = this.chartHeight;
+            height = this.chartHeight,
+            el = this.createCanvas({
+                width,
+                height,
+                chartX: this.totalWidth - width,
+                chartWidth: width,
+                chartHeight: height
+            });
+        
+        el.setAttribute('preserveAspectRatio', 'none');
 
-        return this.createCanvas({
-            width,
-            height,
-            chartX: this.totalWidth - width,
-            chartWidth: width,
-            chartHeight: height
-        });
+        return el;
     }
 
     createPreviewCanvas() {
@@ -223,16 +224,22 @@ export default class Plot {
         return element;
     }
 
-    createPreviewFrame() {
+    /**
+     * 
+     * @param {Object} config Config for preview frame
+     * @param {Number} config.width Width of the preview frame in percents
+     */
+    createPreviewFrame(config = {}) {
         const previewCanvas = this.container.querySelector('.c-preview');
 
         if (previewCanvas) {
-            let element = document.createElement('div');
+            let element = document.createElement('div'),
+                width = 100 - (config.width || 30);
                 
             element.setAttribute('class', 'c-preview-frame');
             element.setAttribute('style', `height:${this.previewHeight}px;`);
 
-            element.innerHTML = `<div class="filler filler-left" style="width:80%"></div>
+            element.innerHTML = `<div class="filler filler-left" style="width:${width}%"></div>
             <div class="frame"></div>
             <div class="filler filler-right"></div>`;
 
@@ -243,6 +250,11 @@ export default class Plot {
                 onEndDrag : this.onEndDrag.bind(this),
                 onMove : this.onMove.bind(this)
             });
+
+            return { 
+                left : this.container.querySelector('.filler-left').offsetWidth, 
+                width : this.container.querySelector('.frame').offsetWidth 
+            };
         }
     }
 
@@ -250,23 +262,67 @@ export default class Plot {
 
     //#region Events
     onEndDrag() {
-        let frameElement = this.container.querySelector('.c-preview-frame'),
-            leftFiller = this.container.querySelector('.filler-left'),
-            rightFiller = this.container.querySelector('.filler-right'),
-            frameElWidth = frameElement.offsetWidth,
-            scale = Math.round(this.totalWidth / frameElWidth),
-            leftWidth = leftFiller.offsetWidth,
-            chartScrollX = leftWidth * scale,
-            chartWidth = (frameElWidth - chartScrollX - rightFiller.offsetWidth) * scale;
-
-        
-        // this.
     }
 
     onMove({ left, right, width }) {
-        let scale = Math.round(this.totalWidth / width);
+        this.updateChart(left, width - left - right, width);
+    }
+    //#endregion
 
-        this.showChartAt(left * scale, (width - left - right) * scale);
+    //#region Calculations
+    /**
+     * Recalculates chart params based on frame config
+     * @param {Number} left Left position of the preview frame
+     * @param {Number} width Width of the preview frame
+     */
+    updateChart(left, width, totalWidth) {
+        let
+            scale = width / totalWidth,
+            columnsCount = this.columns.length,
+            newViewBoxWidth = this.totalWidth * scale,
+            leftScroll = left / totalWidth * this.totalWidth;
+
+        this.mainCanvas.viewBox.baseVal.width = newViewBoxWidth
+        this.mainCanvas.viewBox.baseVal.x = leftScroll;
+        this.previewCanvas.viewBox.baseVal.width = this.totalWidth;
+
+        if (!this.linesCacheMain.size) {
+            this.drawLines();
+        }
+    }
+
+    drawLines() {
+        const
+            height = this.chartHeight,
+            iterator = this.lines.values(),
+            xAxis = this.buildXAxis(),
+            mainCanvas = this.mainCanvas,
+            previewCanvas = this.previewCanvas;
+
+        let result = iterator.next();
+
+        while (!result.done) {
+            const
+                line = result.value,
+                name = line.name,
+                lineEl = line.render(xAxis, height);
+
+            if (this.linesCacheMain.has(name)) {
+                this.linesCacheMain.get(name).setAttribute('points', lineEl.getAttribute('points'));       
+            }
+            else {
+                this.linesCacheMain.set(name, mainCanvas.appendChild(lineEl.cloneNode()));
+            }
+
+            if (this.linesCachePrev.has(name)) {
+                this.linesCachePrev.get(name).setAttribute('points', lineEl.getAttribute('points'))
+            }
+            else {
+                this.linesCachePrev.set(name, previewCanvas.appendChild(lineEl.cloneNode()));
+            }
+
+            result = iterator.next();
+        }
     }
     //#endregion
 
@@ -276,32 +332,20 @@ export default class Plot {
         }
 
         const
-            height = this.chartHeight,
-            i = this.lines.values(),
             previewCanvas = this.previewCanvas = this.createPreviewCanvas(),
             legendCanvas = this.legendCanvas = this.createLegendCanvas(),
-            mainCanvas = this.mainCanvas = this.createMainCanvas(),
-            xAxis = this.buildXAxis();
-
-        let result = i.next();
-
-        while (!result.done) {
-            const line = result.value.render(xAxis, height);
-            mainCanvas.appendChild(line),
-            previewCanvas.appendChild(line.cloneNode());
-            result = i.next();
-        }
+            mainCanvas = this.mainCanvas = this.createMainCanvas();
 
         this.container.appendChild(legendCanvas);
         this.container.appendChild(mainCanvas);
         this.container.appendChild(previewCanvas);
 
-        this.createPreviewFrame();
+        this.createPreviewFrame({ width : 20 });
 
+        // This flag should be true before drawing lines, it shows that all containers are rendered
         this.rendered = true;
-    }
 
-    showChartAt(scrollX, width) {
-        this.mainCanvas.viewBox.baseVal.x = scrollX;
+        // Draw chart based on dimensions calculated from previewFrame config
+        this.updateChart(this.chartWidth * 0.8, this.chartWidth * 0.2, this.chartWidth);
     }
 }

@@ -68,24 +68,35 @@ export default class PreviewDrag {
                 rightFillerWidth,
                 totalWidth : width
             } = this.dragConfig,
-            delta = startX - event.pageX;
-
-        event.stopPropagation();
-        event.preventDefault();
+            delta = startX - event.pageX,
+            newLeft, newRight;
 
         switch (side) {
         case SIDE.left:
-            this.leftFiller.style.width = `${leftFillerWidth - delta}px`;
-            this.onMove({ width, left : leftFillerWidth - delta, right : rightFillerWidth });
+            newLeft = leftFillerWidth - delta;
+
+            if (newLeft > 0) {
+                this.leftFiller.style.width = `${newLeft}px`;
+                this.onMove({ width, left : leftFillerWidth - delta, right : rightFillerWidth });
+            }
             break;
         case SIDE.right:
-            this.rightFiller.style.width = `${rightFillerWidth + delta}px`;
-            this.onMove({ width, left : leftFillerWidth, right : rightFillerWidth });
+            newRight = rightFillerWidth + delta;
+
+            if (newRight > 0) {
+                this.rightFiller.style.width = `${newRight}px`;
+                this.onMove({ width, left : leftFillerWidth, right : newRight });
+            }
             break;
         case SIDE.move:
-            this.leftFiller.style.width = `${leftFillerWidth - delta}px`;
-            this.rightFiller.style.width = `${rightFillerWidth + delta}px`;
-            this.onMove({ width, left : leftFillerWidth - delta, right : rightFillerWidth + delta });
+            newLeft = leftFillerWidth - delta;
+            newRight = rightFillerWidth + delta;
+
+            if (newLeft > 0 && newRight > 0) {
+                this.leftFiller.style.width = `${newLeft}px`;
+                this.rightFiller.style.width = `${newRight}px`;
+                this.onMove({ width, left : leftFillerWidth - delta, right : rightFillerWidth + delta });
+            }
             break;
         }
     }

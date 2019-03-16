@@ -19,7 +19,7 @@ export default class Line {
 
         const points = this.points.map((value, i) => `${axis[i]},${height-value}`).join(' ');
         lineElement.setAttribute('points', points);
-        
+        lineElement.setAttribute('name', this.name);
         lineElement.setAttribute('style', `stroke: ${this.color};`);
         lineElement.setAttribute('class', 'c-line');
 
