@@ -1,0 +1,57 @@
+.c-line {
+    fill: none;
+    stroke-width: 1px;
+}
+
+.c-preview {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+
+    .c-line {
+        stroke-width: 5px;
+    }
+}
+
+.c-legend-canvas {
+    position: absolute;
+    z-index: -1;
+
+    .c-anchor-label {
+        font-size: 14px;
+        opacity: 0.5;
+    }
+
+    .c-anchor-line {
+        stroke-width: .6px;
+        stroke: lightgray;
+    }
+    
+    .c-axis-line {
+        stroke-width: 2px;
+        stroke: black;
+    }
+}
+
+.c-preview-frame {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    touch-action: none;
+
+    .frame {
+        border: 1px solid gray;
+        border-left-width: 4px;
+        border-right-width: 4px;
+        background: transparent;
+        flex: 1;
+    }
+
+    .filler {
+        background-color: gray;
+        opacity: .3;
+    }
+}

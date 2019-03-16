@@ -258,6 +258,29 @@ export default class Plot {
         }
     }
 
+    createButton(attrs = {}, innerHTML = '') {
+        let element = document.createElement('div');
+
+        for (let attr in attrs) {
+            element.setAttribute(attr, attrs[attr]);
+        }
+
+        element.innerHTML = innerHTML;
+
+        return element;
+    }
+
+    createButtons() {
+        let iterator = this.lines.iterator.next(),
+            buttonsEl = this.container.querySelector('.c-buttons-container');
+
+        while(!iterator.done) {
+            let line = iterator.value;
+
+            buttonsEl.appendChild(this.createButton({ class : 'c-button-line' }, line.name));
+        }
+    }
+
     //#endregion    
 
     //#region Events
