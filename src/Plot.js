@@ -22,9 +22,11 @@ export default class Plot {
             this.container = document.getElementById(config.appendTo);
         }
 
+        // chart configs
         this.anchorCount = 5;
         this.rendered = false;
         this.tickWidth = 50;
+        this.frameWidth = 35;
 
         const chart = config.chart;
 
@@ -199,7 +201,8 @@ export default class Plot {
                 height,
                 chartX: this.totalWidth - width,
                 chartWidth: width,
-                chartHeight: height
+                chartHeight: height,
+                cls: 'c-main-canvas'
             });
         
         el.setAttribute('preserveAspectRatio', 'none');
@@ -362,7 +365,7 @@ export default class Plot {
         this.container.appendChild(mainCanvas);
         this.container.appendChild(previewCanvas);
 
-        this.createPreviewFrame({ width : 20 });
+        this.createPreviewFrame({ width : this.frameWidth });
 
         // This flag should be true before drawing lines, it shows that all containers are rendered
         this.rendered = true;
