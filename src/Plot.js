@@ -278,11 +278,10 @@ export default class Plot {
     updateChart(left, width, totalWidth) {
         let
             scale = width / totalWidth,
-            columnsCount = this.columns.length,
             newViewBoxWidth = this.totalWidth * scale,
             leftScroll = left / totalWidth * this.totalWidth;
 
-        this.mainCanvas.viewBox.baseVal.width = newViewBoxWidth
+        this.mainCanvas.viewBox.baseVal.width = newViewBoxWidth;
         this.mainCanvas.viewBox.baseVal.x = leftScroll;
         this.previewCanvas.viewBox.baseVal.width = this.totalWidth;
 
@@ -315,7 +314,7 @@ export default class Plot {
             }
 
             if (this.linesCachePrev.has(name)) {
-                this.linesCachePrev.get(name).setAttribute('points', lineEl.getAttribute('points'))
+                this.linesCachePrev.get(name).setAttribute('points', lineEl.getAttribute('points'));
             }
             else {
                 this.linesCachePrev.set(name, previewCanvas.appendChild(lineEl.cloneNode()));
