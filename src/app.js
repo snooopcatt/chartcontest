@@ -8,7 +8,8 @@ xhr.onreadystatechange = function () {
         
         let plot = new Plot({
             chart : charts[0],
-            appendTo : 'main'
+            appendTo : 'main',
+            name: 'Followers'
         });
         plot.render();
     }
