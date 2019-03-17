@@ -37,11 +37,12 @@ export default class Plot {
         this.lines = new Map();
         this.maxYValues = new Map();
         this.maxXValues = new Map();
+        this.linesCacheMain = new Map();
+        this.linesCachePrev = new Map();
+
         this.id = Plot.generateId();
         this.name = config.name || this.id;
 
-        this.linesCacheMain = new Map();
-        this.linesCachePrev = new Map();
 
         if (config.appendTo instanceof HTMLElement) {
             this.container = config.appendTo;
@@ -51,11 +52,13 @@ export default class Plot {
         }
 
         // chart configs
-        this.anchorCount = 5;
+        this.anchorCount = 6;
         this.xAxisSize = 30;
         this.rendered = false;
         this.tickWidth = 50;
         this.frameWidth = 35;
+        // Pixels to move lines out of the view, to not see them too early
+        this.labelsInitialPosBuffer = 20;
 
         const chart = config.chart;
 
@@ -131,13 +134,14 @@ export default class Plot {
 
     //#region Canvas/Rendering
 
-    getMaxValue(axis = 'x') {
-        const iterator = this[axis === 'x' ? 'maxXValues' : 'maxYValues'].values();
-        let result, maxValue = 0;
+    getMaxValue() {
+        let maxValue = 0;
 
-        while (!(result = iterator.next()).done) {
-            maxValue = result.value > maxValue ? result.value : maxValue;
-        }
+        this.lines.forEach(line => {
+            if (!line.disabled && line.maxYValue > maxValue) {
+                maxValue = line.maxYValue;
+            }
+        });
 
         return maxValue;
     }
@@ -145,6 +149,7 @@ export default class Plot {
     renderLine(config = {}) {
         const lineElement = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         lineElement.setAttribute('class', config.cls || '');
+        lineElement.setAttribute('style', config.style || '');
         lineElement.setAttribute('x1', config.x1);
         lineElement.setAttribute('x2', config.x2);
         lineElement.setAttribute('y1', config.y1);
@@ -153,12 +158,13 @@ export default class Plot {
         return lineElement;
     }
 
-    renderLabel({ x, y, text, cls }) {
+    renderLabel({ x, y, text, cls, style }) {
         const element = document.createElementNS('http://www.w3.org/2000/svg', 'text');
 
         element.setAttribute('x', x);
         element.setAttribute('y', y);
         element.setAttribute('class', cls);
+        element.setAttribute('style', style || '');
 
         element.innerHTML = text;
 
@@ -176,6 +182,46 @@ export default class Plot {
         return element;
     }
 
+    createLinesAndLabels(startY = 0) {
+        let scale = this.getScale(),
+            height = this.chartHeight - 30,
+            step = Math.ceil(height / this.anchorCount),
+            adjustedHeight = startY > height ? -this.labelsInitialPosBuffer : this.chartHeight,
+            result = [];
+
+        [...Array(this.anchorCount).keys()].forEach((i) => {
+            const
+                value = i * step,
+                y = adjustedHeight - value - 1;
+
+            result.push(
+                {
+                    el: this.renderLine({
+                        x1: 0,
+                        x2: this.chartWidth,
+                        y1: startY,
+                        y2: startY,
+                        cls: `c-anchor-line c-anchor-line-${i}`,
+                        style: `transform:translateY(${(startY > height ? 1 : -1) * value * scale}px);opacity:0;`
+                    }),
+                    style: `transform:translateY(${y}px);opacity:1;`
+                },
+                {
+                    el: this.renderLabel({
+                        x: 0,
+                        y: startY,
+                        text: Math.ceil(value / scale),
+                        cls: `c-anchor-label c-anchor-label-${i}`,
+                        style: `transform:translateY(${(startY > height ? 1 : -1) * value * scale - 10}px);opacity:0;`
+                    }),
+                    style: `transform:translateY(${y - 10}px); opacity:1;`
+                }
+            );
+        });
+
+        return result;
+    }
+
     createLegendCanvas() {
         const canvas = this.createCanvas({
             width: this.chartWidth,
@@ -185,29 +231,15 @@ export default class Plot {
             cls: 'c-legend-canvas'
         });
 
-        let maxValue = this.getMaxValue('y'),
-            step = Math.ceil(maxValue / this.anchorCount);
-
-        [...Array(this.anchorCount).keys()].map((i) => {
-            const
-                value = i * step,
-                y = this.chartHeight - value - 1;
-
-            canvas.appendChild(this.renderLine({
-                x1: 0,
-                x2: this.chartWidth,
-                y1: y,
-                y2: y,
-                cls: `c-anchor-line c-anchor-line-${i}`
-            }));
-
-            canvas.appendChild(this.renderLabel({
-                x: 0,
-                y: y - 10,
-                text: value,
-                cls: `c-anchor-label c-anchor-label-${i}`
-            }));
+        const items = this.createLinesAndLabels();
+        
+        items.forEach(item=> {
+            item.el.setAttribute('style', item.style);
+            canvas.appendChild(item.el);
         });
+
+        this.zeroLineTransform = items[0].el.style.transform;
+        this.zeroLabelTransform = items[1].el.style.transform;
 
         return canvas;
     }
@@ -328,11 +360,12 @@ export default class Plot {
         const
             btn = event.currentTarget,
             name = btn.getAttribute('name'),
-            lineEl = this.linesCacheMain.get(name);
+            line = this.lines.get(name);
 
-        lineEl.classList.toggle('c-opaque');
+        this.toggleLine(line);
 
-        if (lineEl.classList.contains('c-opaque')) {
+        // if (lineEl.classList.contains('c-opaque')) {
+        if (line.disabled) {
             btn.querySelector('.c-mask').setAttribute('r', 40);
         }
         else {
@@ -342,6 +375,100 @@ export default class Plot {
     //#endregion
 
     //#region Calculations
+    getScale() {
+        let maxY = 0;
+
+        this.maxYValues.forEach((value, key) => {
+            if (!this.lines.get(key).disabled) {
+                maxY = Math.max(maxY, value);
+            }
+        });
+
+        // All lines were hidden
+        if (maxY === 0) {
+            return 0;
+        }
+
+        let height = this.chartHeight - this.previewHeight;
+
+        return (height / maxY).toFixed(2);
+    }
+    /**
+     * @param {Line} line 
+     */
+    toggleLine(line) {
+        let prevMaxY = this.getMaxValue();
+        line.disabled = !line.disabled;
+        
+        let direction = prevMaxY > this.getMaxValue() ? 'in' : 'out';
+
+        this.updateLines();
+        this.updateLegend(direction);
+    }
+
+    updateLines() {
+        const scale = this.getScale();
+
+        if (scale === 0) { return; }
+
+        const map = new Map();
+
+        this.lines.forEach(line => {
+            const path = line.generatePath(this.xAxis, this.chartHeight, scale);
+            map.set(line.name, path);
+        });
+
+        window.requestAnimationFrame(() => {
+            map.forEach((path, name) => {
+                let line = this.linesCacheMain.get(name);
+                let method = this.lines.get(name).disabled ? 'add' : 'remove';
+
+                line.setAttribute('d', path);
+                line.classList[method]('c-opaque');
+                
+                line = this.linesCachePrev.get(name);
+                line.setAttribute('d', path);
+                line.classList[method]('c-opaque');
+            });
+        });
+    }
+
+    updateLegend(dir) {
+        const
+            scale = this.getScale(),
+            bufferPx = this.labelsInitialPosBuffer;
+
+        if (scale === this.oldScale || scale === 0) { return; }
+
+        const
+            currentItems = Array.from(this.legendCanvas.children).slice(2),
+            newItems = this.createLinesAndLabels(dir === 'in' ? this.chartHeight + bufferPx : 0).slice(2);
+
+        this.oldScale = scale;
+
+        // At first append elements and then change style to enable animations
+        newItems.forEach(i => this.legendCanvas.appendChild(i.el));
+
+        window.requestAnimationFrame(() => {
+            currentItems.forEach(item => {
+                if (item.classList.contains('c-anchor-line')) {
+                    item.style.transform = dir === 'in' ? `translateY(${-bufferPx}px)` : this.zeroLineTransform;
+                }
+                else {
+                    item.style.transform = dir === 'in' ? `translateY(${-bufferPx}px)` : this.zeroLabelTransform;
+                }
+                item.style.opacity = 0;
+                item.addEventListener('transitionend', () => {
+                    item.remove();
+                });
+            });
+
+            newItems.forEach(i => {
+                i.el.setAttribute('style', i.style);
+            });
+        });
+    }
+
     /**
      * Recalculates chart params based on frame config
      * @param {Number} left Left position of the preview frame
@@ -367,11 +494,12 @@ export default class Plot {
 
     drawLines() {
         const
-            height = this.chartHeight - this.xAxisSize,
+            height = this.chartHeight,
             iterator = this.lines.values(),
             xAxis = this.buildXAxis(),
             mainCanvas = this.mainCanvas,
-            previewCanvas = this.previewCanvas;
+            previewCanvas = this.previewCanvas,
+            scale = this.getScale() || 1;
 
         let result = iterator.next();
 
@@ -379,24 +507,27 @@ export default class Plot {
             const
                 line = result.value,
                 name = line.name,
-                lineEl = line.render(xAxis, height);
+                lineEl = line.render(xAxis, height, scale);
 
             if (this.linesCacheMain.has(name)) {
                 this.linesCacheMain.get(name).setAttribute('points', lineEl.getAttribute('points'));
             }
             else {
-                this.linesCacheMain.set(name, mainCanvas.appendChild(lineEl.cloneNode()));
+                this.linesCacheMain.set(name, mainCanvas.appendChild(lineEl.cloneNode(true)));
             }
 
             if (this.linesCachePrev.has(name)) {
                 this.linesCachePrev.get(name).setAttribute('points', lineEl.getAttribute('points'));
             }
             else {
-                this.linesCachePrev.set(name, previewCanvas.appendChild(lineEl.cloneNode()));
+                this.linesCachePrev.set(name, previewCanvas.appendChild(lineEl.cloneNode(true)));
             }
 
             result = iterator.next();
         }
+
+        // Cache x axis for future updates
+        this.xAxis = xAxis;
     }
     //#endregion
 

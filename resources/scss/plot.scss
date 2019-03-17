@@ -16,24 +16,17 @@
     .c-line {
         fill: none;
         stroke-width: 1px;
-        transition: opacity 400ms ease-in-out;
-    }
-
-    .c-preview-canvas {
-        .c-line {
-            stroke-width: 5px;
-        }
-    }
-
-    .c-main-canvas {
-        .c-line {
-            vector-effect: non-scaling-stroke;
-        }
+        vector-effect: non-scaling-stroke;
+        transition: opacity $animation-duration, d $animation-duration;
     }
 
     .c-legend-canvas {
         position: absolute;
         z-index: -1;
+
+        * {
+            transition: transform $animation-duration, opacity $animation-duration;
+        }
 
         .c-anchor-label {
             font-size: 14px;
@@ -43,11 +36,6 @@
         .c-anchor-line {
             stroke-width: 1px;
             stroke: grey;
-        }
-
-        .c-axis-line {
-            stroke-width: 2px;
-            stroke: black;
         }
     }
 
@@ -91,7 +79,7 @@
             margin-left: 0.4em;
             position: absolute;
             opacity: 0;
-            transition: opacity 400ms ease-in-out;
+            transition: opacity $animation-duration ease-in-out;
             transform: translateX(-50%);
 
             &.c-axis-label-first {

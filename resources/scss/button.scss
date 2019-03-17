@@ -21,7 +21,7 @@ $circle-height: 1.5em;
     }
 
     .c-mask {
-        transition: r 400ms ease-in-out;
+        transition: r $animation-duration ease-in-out;
     }
 
     p {
