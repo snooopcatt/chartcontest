@@ -1,5 +1,6 @@
 import Line from './Line.js';
 import PreviewDrag from './PreviewDrag.js';
+import LabelsAxis from './Labels.js';
 
 export default class Plot {
     static generateId() {
@@ -159,14 +160,12 @@ export default class Plot {
         });
 
         let maxValue = this.getMaxValue('y'),
-            step = Math.ceil(maxValue / this.anchorCount),
-            // reserve some space for axis
-            visibleChartHeight = this.chartHeight - this.xAxisSize;
+            step = Math.ceil(maxValue / this.anchorCount);
 
         [...Array(this.anchorCount).keys()].map((i) => {
             const
                 value = i * step,
-                y = visibleChartHeight - value;
+                y = this.chartHeight - value - 1;
 
             canvas.appendChild(this.renderLine({
                 x1: 0,
@@ -183,15 +182,6 @@ export default class Plot {
                 cls: `c-anchor-label c-anchor-label-${i}`
             }));
         });
-
-        const xAxis = this.renderLine({
-            x1: 0,
-            x2: this.chartWidth,
-            y1: this.chartHeight,
-            y2: this.chartHeight,
-            cls: 'c-axis-line'
-        });
-        canvas.appendChild(xAxis);
 
         return canvas;
     }
@@ -261,6 +251,15 @@ export default class Plot {
         }
     }
 
+    createLabelsAxis(xAxis) {
+        this.labelsAxis = new LabelsAxis({ 
+            xAxis,
+            totalWidth: this.totalWidth,
+            columns: this.columns,
+            appendTo: this.element.querySelector('.c-axis')
+        });
+    }
+
     createButton(attrs = {}, innerHTML = '') {
         let element = document.createElement('div');
 
@@ -310,6 +309,9 @@ export default class Plot {
         this.mainCanvas.viewBox.baseVal.width = newViewBoxWidth;
         this.mainCanvas.viewBox.baseVal.x = leftScroll;
         this.previewCanvas.viewBox.baseVal.width = this.totalWidth;
+        
+        this.labelsAxis.setWidth(totalWidth / scale);
+        this.labelsAxis.setLeft(totalWidth / scale * (left / totalWidth));
 
         if (!this.linesCacheMain.size) {
             this.drawLines();
@@ -363,6 +365,7 @@ export default class Plot {
         element.innerHTML = `
             <div class="title">${this.name}</div>
             <div class="c-main"></div>
+            <div class="c-axis"></div>
             <div class="c-preview"></div>
         `;
 
@@ -374,6 +377,8 @@ export default class Plot {
         element.querySelector('.c-main').appendChild(legendCanvas);
         element.querySelector('.c-main').appendChild(mainCanvas);
         element.querySelector('.c-preview').appendChild(previewCanvas);
+
+        this.createLabelsAxis();
 
         this.createPreviewFrame({ width : this.frameWidth });
 

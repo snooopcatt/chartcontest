@@ -13,6 +13,9 @@ export default class PreviewDrag {
         this.leftFiller = target.querySelector('.filler-left');
         this.rightFiller = target.querySelector('.filler-right');
 
+        this.minWidth = 30;
+        this.handleWidth = 30;
+
         // store end drag handler, since we don't have any inner events
         this.onEndDrag = config.onEndDrag;
         this.onMove = config.onMove;
@@ -21,19 +24,13 @@ export default class PreviewDrag {
         this.onPointerMove = this.onPointerMove.bind(this);
         this.onPointerUp = this.onPointerUp.bind(this);
 
-        // listen to pointer down on target
-        this.frame.addEventListener('pointerdown', this.onPointerDown);
+        // listen to pointer down on container to catch clicks outside
+        // of the frame element itself
+        target.addEventListener('pointerdown', this.onPointerDown);
 
         // listen to pointerup on document
         document.addEventListener('pointerup', this.onPointerUp);
-
     }
-
-    //#region params
-    get handleWidth() {
-        return 20;
-    }
-    //#endregion
 
     onPointerDown(event) {
         if (this.dragging) {
@@ -43,15 +40,16 @@ export default class PreviewDrag {
         event.stopPropagation();
         event.preventDefault();
 
-        let targetBox = event.target.getBoundingClientRect(),
+        let targetBox = this.frame.getBoundingClientRect(),
             boxLeft = targetBox.left,
-            boxRight = targetBox.left + targetBox.width;
+            boxRight = targetBox.left + targetBox.width,
+            threshold = this.handleWidth / 2;
 
-        if (event.pageX > boxLeft && event.pageX < boxRight) {
-            if (event.pageX - boxLeft < this.handleWidth) {
+        if (event.pageX > (boxLeft - threshold) && event.pageX < (boxRight + threshold)) {
+            if (Math.abs(event.pageX - boxLeft) < threshold) {
                 this.startDrag(SIDE.left, event);
             }
-            else if (boxRight - event.pageX < this.handleWidth) {
+            else if (Math.abs(boxRight - event.pageX) < threshold) {
                 this.startDrag(SIDE.right, event);
             }
             else {
@@ -75,15 +73,15 @@ export default class PreviewDrag {
         case SIDE.left:
             newLeft = leftFillerWidth - delta;
 
-            if (newLeft > 0) {
+            if (newLeft > 0 && width - rightFillerWidth - newLeft >= this.minWidth) {
                 this.leftFiller.style.width = `${newLeft}px`;
-                this.onMove({ width, left : leftFillerWidth - delta, right : rightFillerWidth });
+                this.onMove({ width, left : newLeft, right : rightFillerWidth });
             }
             break;
         case SIDE.right:
             newRight = rightFillerWidth + delta;
 
-            if (newRight > 0) {
+            if (newRight > 0 && width - leftFillerWidth - newRight >= this.minWidth) {
                 this.rightFiller.style.width = `${newRight}px`;
                 this.onMove({ width, left : leftFillerWidth, right : newRight });
             }
@@ -95,7 +93,7 @@ export default class PreviewDrag {
             if (newLeft > 0 && newRight > 0) {
                 this.leftFiller.style.width = `${newLeft}px`;
                 this.rightFiller.style.width = `${newRight}px`;
-                this.onMove({ width, left : leftFillerWidth - delta, right : rightFillerWidth + delta });
+                this.onMove({ width, left : newLeft, right : newRight });
             }
             break;
         }

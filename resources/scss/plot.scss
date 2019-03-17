@@ -68,4 +68,34 @@
             opacity: 0.3;
         }
     }
+
+    .c-axis {
+        height: 1em;
+        font-size: 0.7em;
+        overflow: hidden;
+
+        > div {
+            position: relative;
+        }
+
+        .c-axis-label {
+            margin-left: 0.4em;
+            position: absolute;
+            opacity: 0;
+            transition: opacity 400ms ease-in-out;
+            transform: translateX(-50%);
+
+            &.c-axis-label-first {
+                transform: none;
+            }
+
+            &.c-axis-label-last {
+                transform: translateX(-100%);
+            }
+
+            &.c-axis-label-visible {
+                opacity: 1;
+            }
+        }
+    }
 }
