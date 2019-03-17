@@ -39,7 +39,7 @@ export default class LabelsAxis {
         this.container.style.width = `${width}px`;
 
         const
-            maxLabelsToShow = Math.floor(width / (this.labelWidth * 2)),
+            maxLabelsToShow = Math.floor(width / (this.labelWidth * 1.5)),
             labelsCount = this.labels.length;
 
         if (maxLabelsToShow === this.maxLabelsToShow) {
