@@ -1,7 +1,30 @@
+$circle-height: 1.5em;
+
 .c-buttons-container {
     width: 100%;
+    margin-top: 0.5em;
 }
 
 .c-button {
     float: left;
+    margin-right: 1em;
+    margin-bottom: 1em;
+    background: transparent;
+    padding: 0.4em 0.7em 0.4em 0.5em;
+    border: 1px solid lightgray;
+    border-radius: $circle-height * 2;
+    display: flex;
+    outline: none;
+
+    > * {
+        margin: auto;
+    }
+
+    .c-mask {
+        transition: r 400ms ease-in-out;
+    }
+
+    p {
+        margin-left: 0.5em;
+    }
 }

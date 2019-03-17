@@ -1,6 +1,32 @@
+/* eslint-disable quotes */
 import Line from './Line.js';
 import PreviewDrag from './PreviewDrag.js';
 import LabelsAxis from './Labels.js';
+
+//#region Debug
+// function renderIcon(container) {
+//     let el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+//     el.setAttribute('width', 200);
+//     el.setAttribute('height', 200);
+//     el.setAttribute('viewBox', '0 0 100 100');
+
+//     let lw = 5, cx = 50, cy = 60;
+//     let points = [
+//         [cx - 2 * lw, cy + lw],
+//         [cx + 5 * lw, cy - 6 * lw],
+//         [cx + 6 * lw, cy - 5 * lw],
+//         [cx - 2 * lw, cy + 3 * lw],
+//         [cx - 6 * lw, cy - 1 * lw],
+//         [cx - 5 * lw, cy - 2 * lw],
+//         [cx - 2 * lw, cy + lw]
+//     ].map(i => i.join(',')).join(' ');
+//     el.innerHTML = '<circle cx="50" cy="50" r="50" fill="#3DC23F"></circle>';
+//     el.innerHTML += `<polyline fill="white" points="${points}"></polyline>`;
+//     el.innerHTML += '<circle fill="white" cx="50" cy="50" r="0"><animate attributeName="r" dur="600ms" fill="freeze" from="0" to="40"/></circle>';
+
+//     container.insertBefore(el, this.container.firstElementChild);
+// }
+//#endregion
 
 export default class Plot {
     static generateId() {
@@ -102,9 +128,9 @@ export default class Plot {
     }
 
     //#endregion
-    
+
     //#region Canvas/Rendering
-    
+
     getMaxValue(axis = 'x') {
         const iterator = this[axis === 'x' ? 'maxXValues' : 'maxYValues'].values();
         let result, maxValue = 0;
@@ -198,7 +224,7 @@ export default class Plot {
                 chartHeight: height,
                 cls: 'c-main-canvas'
             });
-        
+
         el.setAttribute('preserveAspectRatio', 'none');
 
         return el;
@@ -232,7 +258,7 @@ export default class Plot {
         if (previewCanvas) {
             let element = document.createElement('div'),
                 width = 100 - (config.width || 30);
-                
+
             element.setAttribute('class', 'c-preview-frame');
             element.setAttribute('style', `height:${this.previewHeight}px;`);
 
@@ -243,16 +269,16 @@ export default class Plot {
 
             element = this.element.querySelector('.c-preview').appendChild(element);
 
-            this.previewDrag = new PreviewDrag({ 
-                target : element,
-                onEndDrag : this.onEndDrag.bind(this),
-                onMove : this.onMove.bind(this)
+            this.previewDrag = new PreviewDrag({
+                target: element,
+                onEndDrag: this.onEndDrag.bind(this),
+                onMove: this.onMove.bind(this)
             });
         }
     }
 
     createLabelsAxis(xAxis) {
-        this.labelsAxis = new LabelsAxis({ 
+        this.labelsAxis = new LabelsAxis({
             xAxis,
             totalWidth: this.totalWidth,
             columns: this.columns,
@@ -260,27 +286,32 @@ export default class Plot {
         });
     }
 
-    createButton(attrs = {}, innerHTML = '') {
+    /**
+     * 
+     * @param {Line} line 
+     */
+    createButton(line) {
         let element = document.createElement('div');
 
-        for (let attr in attrs) {
-            element.setAttribute(attr, attrs[attr]);
-        }
-
-        element.innerHTML = innerHTML;
-
-        return element;
+        element.innerHTML = `
+        <button class="c-button c-presed" name="${line.name}">
+            <svg xmlns='http://www.w3.org/2000/svg' width='1.5em' height='1.5em' viewBox='0 0 100 100'>
+                <circle cx='50' cy='50' r='50' fill='${line.color}'></circle>
+                <polyline fill='white' points='40,65 75,30 80,35 40,75 20,55 25,50 40,65'></polyline>
+                <circle class="c-mask" fill='white' cx='50' cy='50' r='0'></circle>
+            </svg>
+            <p>${line.name}</p>
+        </button>`;
+        return element.firstElementChild;
     }
 
     createButtons() {
-        let iterator = this.lines.iterator.next(),
-            buttonsEl = this.element.querySelector('.c-buttons-container');
+        let buttonsEl = this.element.querySelector('.c-buttons-container');
 
-        while(!iterator.done) {
-            let line = iterator.value;
-
-            buttonsEl.appendChild(this.createButton({ class : 'c-button-line' }, line.name));
-        }
+        this.lines.forEach(line => {
+            const btn = buttonsEl.appendChild(this.createButton(line));
+            btn.addEventListener('pointerdown', this.onButtonDown.bind(this));
+        });
     }
 
     //#endregion    
@@ -291,6 +322,22 @@ export default class Plot {
 
     onMove({ left, right, width }) {
         this.updateChart(left, width - left - right, width);
+    }
+
+    onButtonDown(event) {
+        const
+            btn = event.currentTarget,
+            name = btn.getAttribute('name'),
+            lineEl = this.linesCacheMain.get(name);
+
+        lineEl.classList.toggle('c-opaque');
+
+        if (lineEl.classList.contains('c-opaque')) {
+            btn.querySelector('.c-mask').setAttribute('r', 40);
+        }
+        else {
+            btn.querySelector('.c-mask').setAttribute('r', 0);
+        }
     }
     //#endregion
 
@@ -309,7 +356,7 @@ export default class Plot {
         this.mainCanvas.viewBox.baseVal.width = newViewBoxWidth;
         this.mainCanvas.viewBox.baseVal.x = leftScroll;
         this.previewCanvas.viewBox.baseVal.width = this.totalWidth;
-        
+
         this.labelsAxis.setWidth(totalWidth / scale);
         this.labelsAxis.setLeft(totalWidth / scale * (left / totalWidth));
 
@@ -335,7 +382,7 @@ export default class Plot {
                 lineEl = line.render(xAxis, height);
 
             if (this.linesCacheMain.has(name)) {
-                this.linesCacheMain.get(name).setAttribute('points', lineEl.getAttribute('points'));       
+                this.linesCacheMain.get(name).setAttribute('points', lineEl.getAttribute('points'));
             }
             else {
                 this.linesCacheMain.set(name, mainCanvas.appendChild(lineEl.cloneNode()));
@@ -357,16 +404,17 @@ export default class Plot {
         if (!this.container) {
             return;
         }
-        
+
         const element = document.createElement('div');
         element.setAttribute('class', 'c-plot');
         this.element = this.container.appendChild(element);
-    
+
         element.innerHTML = `
             <div class="title">${this.name}</div>
             <div class="c-main"></div>
             <div class="c-axis"></div>
             <div class="c-preview"></div>
+            <div class="c-buttons-container"></div>
         `;
 
         const
@@ -379,8 +427,9 @@ export default class Plot {
         element.querySelector('.c-preview').appendChild(previewCanvas);
 
         this.createLabelsAxis();
+        this.createButtons();
 
-        this.createPreviewFrame({ width : this.frameWidth });
+        this.createPreviewFrame({ width: this.frameWidth });
 
         // This flag should be true before drawing lines, it shows that all containers are rendered
         this.rendered = true;

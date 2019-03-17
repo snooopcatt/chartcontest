@@ -1,3 +1,7 @@
+.c-opaque {
+    opacity: 0;
+}
+
 .c-plot {
     width: 100%;
     min-height: 400px;
@@ -12,6 +16,7 @@
     .c-line {
         fill: none;
         stroke-width: 1px;
+        transition: opacity 400ms ease-in-out;
     }
 
     .c-preview-canvas {
@@ -46,26 +51,30 @@
         }
     }
 
-    .c-preview-frame {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        width: 100%;
-        display: flex;
-        flex-direction: row;
-        touch-action: none;
+    .c-preview {
+        position: relative;
 
-        .frame {
-            border: 1px solid gray;
-            border-left-width: 4px;
-            border-right-width: 4px;
-            background: transparent;
-            flex: 1;
-        }
+        .c-preview-frame {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            touch-action: none;
 
-        .filler {
-            background-color: gray;
-            opacity: 0.3;
+            .frame {
+                border: 1px solid gray;
+                border-left-width: 4px;
+                border-right-width: 4px;
+                background: transparent;
+                flex: 1;
+            }
+
+            .filler {
+                background-color: gray;
+                opacity: 0.3;
+            }
         }
     }
 
