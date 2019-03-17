@@ -64,7 +64,8 @@ export default class PreviewDrag {
                 side,
                 leftFillerWidth,
                 rightFillerWidth,
-                totalWidth : width
+                totalWidth : width,
+                frameWidth
             } = this.dragConfig,
             delta = startX - event.pageX,
             newLeft, newRight;
@@ -73,7 +74,7 @@ export default class PreviewDrag {
         case SIDE.left:
             newLeft = leftFillerWidth - delta;
 
-            if (newLeft > 0 && width - rightFillerWidth - newLeft >= this.minWidth) {
+            if (newLeft >= 0 && width - rightFillerWidth - newLeft >= this.minWidth) {
                 this.leftFiller.style.width = `${newLeft}px`;
                 this.onMove({ width, left : newLeft, right : rightFillerWidth });
             }
@@ -81,7 +82,7 @@ export default class PreviewDrag {
         case SIDE.right:
             newRight = rightFillerWidth + delta;
 
-            if (newRight > 0 && width - leftFillerWidth - newRight >= this.minWidth) {
+            if (newRight >= 0 && width - leftFillerWidth - newRight >= this.minWidth) {
                 this.rightFiller.style.width = `${newRight}px`;
                 this.onMove({ width, left : leftFillerWidth, right : newRight });
             }
@@ -90,10 +91,27 @@ export default class PreviewDrag {
             newLeft = leftFillerWidth - delta;
             newRight = rightFillerWidth + delta;
 
-            if (newLeft > 0 && newRight > 0) {
+            if (newLeft >= 0 && newRight >= 0) {
+                this.block = false;
                 this.leftFiller.style.width = `${newLeft}px`;
                 this.rightFiller.style.width = `${newRight}px`;
                 this.onMove({ width, left : newLeft, right : newRight });
+            }
+            else if (!this.block) {
+                this.block = true;
+                
+                if (newLeft < newRight) {
+                    newRight = width - frameWidth;
+                    this.leftFiller.style.width = `${0}px`;
+                    this.rightFiller.style.width = `${newRight}px`;
+                    this.onMove({ width, left : 0, right : newRight });
+                }
+                else {
+                    newLeft = width - frameWidth;
+                    this.leftFiller.style.width = `${newLeft}px`;
+                    this.rightFiller.style.width = `${0}px`;
+                    this.onMove({ width, left : newLeft, right : 0 });
+                }
             }
             break;
         }
@@ -116,6 +134,7 @@ export default class PreviewDrag {
         this.dragConfig = {
             side,
             startX: event.pageX,
+            frameWidth: this.frame.offsetWidth,
             leftFillerWidth: this.leftFiller.clientWidth,
             rightFillerWidth: this.rightFiller.clientWidth,
             totalWidth: this.target.clientWidth
