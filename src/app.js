@@ -17,3 +17,14 @@ xhr.onreadystatechange = function () {
 
 xhr.open('GET', '/contest/data/chart_data.json');
 xhr.send();
+
+const footer = document.querySelector('.footer');
+footer.addEventListener('pointerdown', () => {
+    if (/Night/.test(footer.innerHTML)) {
+        document.body.classList.add('c-night');
+        footer.innerHTML = 'Switch to Day Mode';
+    } else {
+        document.body.classList.remove('c-night');
+        footer.innerHTML = 'Switch to Night Mode';
+    }
+});

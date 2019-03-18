@@ -12,3 +12,28 @@
         width: 800px;
     }
 }
+
+.footer {
+    position: fixed;
+    height: 3em;
+    bottom: 0;
+    text-align: center;
+    width: 100%;
+    font-size: 1.5em;
+}
+
+.c-night {
+    background-color: darkslategray;
+
+    .footer {
+        color: cyan;
+    }
+
+    .c-button, .title {
+        color: $night-font-color;
+    }
+
+    .c-anchor-label {
+        fill: $night-font-color;
+    }
+}
