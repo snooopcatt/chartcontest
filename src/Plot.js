@@ -228,14 +228,33 @@ export default class Plot {
         });
 
         const items = this.createLinesAndLabels();
-        
-        items.forEach(item=> {
+
+        items.forEach(item => {
             item.el.setAttribute('style', item.style);
             canvas.appendChild(item.el);
         });
 
         this.zeroLineTransform = items[0].el.style.transform;
         this.zeroLabelTransform = items[1].el.style.transform;
+
+        return canvas;
+    }
+
+    createTipCanvas() {
+        const canvas = this.createCanvas({
+            width: this.chartWidth,
+            height: this.chartHeight,
+            chartWidth: this.chartWidth,
+            chartHeight: this.chartHeight,
+            cls: 'c-tip-canvas'
+        });
+
+        canvas.innerHTML += `<line class="c-hide c-anchor-line" y1="0" y2="${this.chartHeight}"/>`;
+        
+        this.lines.forEach(line => {
+            canvas.innerHTML += `<circle class="c-hide" name="${line.name}" fill="${line.color}" r="5"/>
+            <circle class="c-hide c-circle-mask" name="${line.name}" r="3" />`;
+        });
 
         return canvas;
     }
@@ -299,7 +318,7 @@ export default class Plot {
 
             this.previewDrag = new PreviewDrag({
                 target: element,
-                onEndDrag: this.onEndDrag.bind(this),
+                onStartDrag: this.onStartDrag.bind(this),
                 onMove: this.onMove.bind(this)
             });
         }
@@ -345,7 +364,12 @@ export default class Plot {
     //#endregion    
 
     //#region Events
-    onEndDrag() {
+    onStartDrag() {
+        let els = this.tipCanvas.querySelectorAll('*');
+
+        for (let i = 0, l = els.length; i < l; i++) {
+            els[i].classList.add('c-hide');
+        }
     }
 
     onMove({ left, right, width }) {
@@ -367,6 +391,41 @@ export default class Plot {
         else {
             btn.querySelector('.c-mask').setAttribute('r', 0);
         }
+    }
+
+    onCanvasClick(e) {
+        const target = e.currentTarget,
+            svgWidth = target.viewBox.baseVal.width,
+            hScale = target.clientWidth / svgWidth,
+            vScale = this.getScale(),
+            scrollLeft = target.viewBox.baseVal.x,
+            // experimental feature
+            eventX = e.layerX,
+            chartX = eventX / hScale + scrollLeft,
+            step = this.tickWidth,
+            index = Math.round(chartX / step),
+            chartHeight = this.chartHeight,
+            x = this.xAxis[index],
+            clientX = (x - scrollLeft) * hScale;
+
+        this.lines.forEach(line => {
+            if (!line.disabled) {
+                let els = this.tipCanvas.querySelectorAll(`[name="${line.name}"]`);
+
+                for (let i = 0; i < 2; i++) {
+                    let el = els[i];
+
+                    el.setAttribute('cx', clientX);
+                    el.setAttribute('cy', chartHeight - line.points[index] * vScale);
+                    el.classList.remove('c-hide');
+                }
+            }
+        });
+
+        let lineEl = this.tipCanvas.querySelector('line');
+        lineEl.classList.remove('c-hide');
+        lineEl.setAttribute('x1', clientX);
+        lineEl.setAttribute('x2', clientX);
     }
     //#endregion
 
@@ -395,7 +454,7 @@ export default class Plot {
     toggleLine(line) {
         let prevMaxY = this.getMaxValue();
         line.disabled = !line.disabled;
-        
+
         let direction = prevMaxY > this.getMaxValue() ? 'in' : 'out';
 
         this.updateLines();
@@ -429,7 +488,7 @@ export default class Plot {
 
                 line.setAttribute('d', path);
                 line.classList[method]('c-opaque');
-                
+
                 line = this.linesCachePrev.get(name);
                 line.setAttribute('d', path);
                 line.classList[method]('c-opaque');
@@ -549,11 +608,15 @@ export default class Plot {
         const
             previewCanvas = this.previewCanvas = this.createPreviewCanvas(),
             legendCanvas = this.legendCanvas = this.createLegendCanvas(),
-            mainCanvas = this.mainCanvas = this.createMainCanvas();
+            mainCanvas = this.mainCanvas = this.createMainCanvas(),
+            tipCanvas = this.tipCanvas = this.createTipCanvas();
 
         element.querySelector('.c-main').appendChild(legendCanvas);
         element.querySelector('.c-main').appendChild(mainCanvas);
+        element.querySelector('.c-main').appendChild(tipCanvas);
         element.querySelector('.c-preview').appendChild(previewCanvas);
+
+        mainCanvas.addEventListener('pointerdown', this.onCanvasClick.bind(this));
 
         this.createLabelsAxis();
         this.createButtons();

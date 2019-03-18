@@ -2,6 +2,10 @@
     opacity: 0;
 }
 
+.c-hide {
+    display: none;
+}
+
 .c-plot {
     width: 100%;
     min-height: 400px;
@@ -36,6 +40,17 @@
         .c-anchor-line {
             stroke-width: 1px;
             stroke: grey;
+        }
+    }
+
+    .c-tip-canvas {
+        position: absolute;
+        left: 0;
+        pointer-events: none;
+
+        .c-anchor-line {
+            stroke-width: 1px;
+            stroke: lightgray;
         }
     }
 

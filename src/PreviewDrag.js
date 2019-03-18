@@ -17,8 +17,10 @@ export default class PreviewDrag {
         this.handleWidth = 30;
 
         // store end drag handler, since we don't have any inner events
-        this.onEndDrag = config.onEndDrag;
-        this.onMove = config.onMove;
+        const fn = () => {};
+        this.onEndDrag = config.onEndDrag || fn;
+        this.onMove = config.onMove || fn;
+        this.onStartDrag = config.onStartDrag || fn;
 
         this.onPointerDown = this.onPointerDown.bind(this);
         this.onPointerMove = this.onPointerMove.bind(this);
@@ -141,6 +143,7 @@ export default class PreviewDrag {
         };
 
         document.addEventListener('pointermove', this.onPointerMove);
+        this.onStartDrag();
     }
 
     endDrag() {

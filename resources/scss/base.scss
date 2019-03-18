@@ -22,8 +22,16 @@
     font-size: 1.5em;
 }
 
+.c-circle-mask {
+    fill: $day-bg-color;
+}
+
 .c-night {
-    background-color: darkslategray;
+    background-color: $night-bg-color;
+
+    .c-circle-mask {
+        fill: $night-bg-color;
+    }
 
     .footer {
         color: cyan;
