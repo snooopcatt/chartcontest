@@ -94,10 +94,6 @@ export default class Plot {
         this.maxYValues.set(line.name, line.maxYValue);
     }
 
-    getLines() {
-        return this.lines.values();
-    }
-
     //#region Chart dimensions
 
     get totalWidth() {
@@ -566,6 +562,8 @@ export default class Plot {
 
         // This flag should be true before drawing lines, it shows that all containers are rendered
         this.rendered = true;
+
+        this.oldScale = this.getScale();
 
         // Draw chart based on dimensions calculated from previewFrame config
         this.updateChart(this.chartWidth * (1 - this.frameWidth / 100), this.chartWidth * (this.frameWidth / 100), this.chartWidth);
