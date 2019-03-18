@@ -409,7 +409,15 @@ export default class Plot {
     updateLines() {
         const scale = this.getScale();
 
-        if (scale === 0) { return; }
+        if (scale === 0) {
+            window.requestAnimationFrame(() => {
+                this.lines.forEach(line => {
+                    this.linesCacheMain.get(line.name).classList.add('c-opaque');
+                    this.linesCachePrev.get(line.name).classList.add('c-opaque');
+                });
+            });
+            return;
+        }
 
         const map = new Map();
 
@@ -451,13 +459,7 @@ export default class Plot {
 
         window.requestAnimationFrame(() => {
             currentItems.forEach(item => {
-                if (item.classList.contains('c-anchor-line')) {
-                    item.style.transform = dir === 'in' ? `translateY(${-bufferPx}px)` : this.zeroLineTransform;
-                }
-                else {
-                    item.style.transform = dir === 'in' ? `translateY(${-bufferPx}px)` : this.zeroLabelTransform;
-                }
-                item.style.opacity = 0;
+                item.setAttribute('style', 'transform:translateY(0);opacity:0;');
                 item.addEventListener('transitionend', () => {
                     item.remove();
                 });
