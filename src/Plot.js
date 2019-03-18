@@ -202,7 +202,7 @@ export default class Plot {
                         y1: startY,
                         y2: startY,
                         cls: `c-anchor-line c-anchor-line-${i}`,
-                        style: `transform:translateY(${(startY > height ? 1 : -1) * value * scale}px);opacity:0;`
+                        style: `transform:translateY(0px);opacity:0;`
                     }),
                     style: `transform:translateY(${y}px);opacity:1;`
                 },
@@ -212,9 +212,9 @@ export default class Plot {
                         y: startY,
                         text: Math.ceil(value / scale),
                         cls: `c-anchor-label c-anchor-label-${i}`,
-                        style: `transform:translateY(${(startY > height ? 1 : -1) * value * scale - 10}px);opacity:0;`
+                        style: `transform:translateY(-10px);opacity:0;`
                     }),
-                    style: `transform:translateY(${y - 10}px); opacity:1;`
+                    style: `transform:translateY(${y - 10}px);opacity:1;`
                 }
             );
         });
