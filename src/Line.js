@@ -8,17 +8,17 @@ export default class Line {
     processPoints(points) {
         this.maxYValue = Math.max(...points);
         this.points = points;
-
-        //TODO: remove this when debug is done
-        this.points[0] = 0;
-        this.points[10] = 250;
-        this.points[20] = 95;
     }
 
-    generatePath(xAxis, height, scale = 1) {
+    generatePath(xAxis, height, scale = 1, baseValue = 0) {
         return `M${this.points.map((value, i) => {
-            return `${xAxis[i]},${height - value * scale}`;
+            return `${xAxis[i]},${height - (value - baseValue) * scale}`;
         }).join(' ')}`;
+    }
+
+    getMinMaxValue(start, end) {
+        let range = this.points.slice(start, end);
+        return [Math.min(...range), Math.max(...range)];
     }
 
     render(axis, height, scale = 1) {

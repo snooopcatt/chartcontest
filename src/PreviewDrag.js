@@ -64,34 +64,33 @@ export default class PreviewDrag {
         let {
                 startX,
                 side,
-                leftFillerWidth,
-                rightFillerWidth,
+                leftFillerWidth : newLeft,
+                rightFillerWidth : newRight,
                 totalWidth : width,
                 frameWidth
             } = this.dragConfig,
-            delta = startX - event.pageX,
-            newLeft, newRight;
+            delta = startX - event.pageX;
 
         switch (side) {
         case SIDE.left:
-            newLeft = leftFillerWidth - delta;
+            newLeft = newLeft - delta;
 
-            if (newLeft >= 0 && width - rightFillerWidth - newLeft >= this.minWidth) {
+            if (newLeft >= 0 && width - newRight - newLeft >= this.minWidth) {
                 this.leftFiller.style.width = `${newLeft}px`;
-                this.onMove({ width, left : newLeft, right : rightFillerWidth });
+                this.onMove({ width, left : newLeft, right : newRight });
             }
             break;
         case SIDE.right:
-            newRight = rightFillerWidth + delta;
+            newRight = newRight + delta;
 
-            if (newRight >= 0 && width - leftFillerWidth - newRight >= this.minWidth) {
+            if (newRight >= 0 && width - newLeft - newRight >= this.minWidth) {
                 this.rightFiller.style.width = `${newRight}px`;
-                this.onMove({ width, left : leftFillerWidth, right : newRight });
+                this.onMove({ width, left : newLeft, right : newRight });
             }
             break;
         case SIDE.move:
-            newLeft = leftFillerWidth - delta;
-            newRight = rightFillerWidth + delta;
+            newLeft = newLeft - delta;
+            newRight = newRight + delta;
 
             if (newLeft >= 0 && newRight >= 0) {
                 this.block = false;

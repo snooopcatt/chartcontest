@@ -54,7 +54,7 @@ export default class LabelsAxis {
         }
 
         for (let i = 0; i < labelsCount; i++) {
-            if (i === 0 || i === labelsCount - 1 || i % step === 0) {
+            if (i === labelsCount - 1 || i % step === 0) {
                 this.labels[i].classList.add(this.visibleClassName);
             }
             else {

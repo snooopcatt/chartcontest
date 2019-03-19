@@ -30,7 +30,8 @@ import { formatDate } from './Utils.js';
 //#endregion
 
 const hideCls = 'c-hide',
-    nvsblCls = 'c-hidden';
+    nvsblCls = 'c-hidden',
+    opaqCls = 'c-opaque';
 
 export default class Plot {
     static generateId() {
@@ -64,6 +65,8 @@ export default class Plot {
         // Pixels to move lines out of the view, to not see them too early
         this.labelsInitialPosBuffer = 20;
 
+        this.rescaleOnMove = this.createBuffered(this.scaleChart, this, 500);
+
         const chart = config.chart;
 
         chart.columns.forEach(col => {
@@ -82,6 +85,8 @@ export default class Plot {
                 this.chartLengthMS = values[values.length - 1] - values[0];
             }
         });
+
+        this.xAxis = this.buildXAxis();
     }
 
     buildXAxis() {
@@ -115,6 +120,15 @@ export default class Plot {
     get previewHeight() {
         return 50;
     }
+
+    get currentScale() {
+        if (this._currentScale) {
+            return this._currentScale;
+        }
+
+        return this.getScale();
+    }
+    set currentScale(value) { this._currentScale = value; }
 
     /**
      * Returns height of the chart portion of the plot (total height - preview height)
@@ -191,7 +205,7 @@ export default class Plot {
     }
 
     createLinesAndLabels(startY = 0) {
-        let scale = this.getScale(),
+        let scale = this.currentScale,//this.getScale(),
             height = this.chartHeight - 30,
             step = Math.ceil(height / this.anchorCount),
             adjustedHeight = startY > height ? -this.labelsInitialPosBuffer : this.chartHeight,
@@ -382,6 +396,7 @@ export default class Plot {
 
     onMove({ left, right, width }) {
         this.updateChart(left, width - left - right, width);
+        this.rescaleOnMove({ left, right, width });
     }
 
     onButtonDown(event) {
@@ -415,14 +430,7 @@ export default class Plot {
             x = this.xAxis[index],
             clientX = (x - scrollLeft) * hScale;
 
-        let wasFired = false;
-
-        this.mainCanvas.addEventListener('pointermove', () => wasFired = true, { once: true });
-
-        setTimeout(() => {
-            if (wasFired) this.hideTip()
-            else this.showTipAt(clientX, index);
-        }, 100);
+        this.showTipAt(clientX, index);
     }
 
     hideTip() {
@@ -438,7 +446,7 @@ export default class Plot {
     showTipAt(clientX, index) {
         const
             chartHeight = this.chartHeight,
-            vScale = this.getScale(),
+            vScale = this.currentScale,//getScale(),
             tipEl = this.tooltipEl,
             tipContent = [];
 
@@ -506,53 +514,14 @@ export default class Plot {
 
         let direction = prevMaxY > this.getMaxValue() ? 'in' : 'out';
 
-        this.updateLines();
-        this.updateLegend(direction);
+        this.scaleChart(null, direction, true);
     }
 
-    updateLines() {
-        const scale = this.getScale();
-
-        if (scale === 0) {
-            window.requestAnimationFrame(() => {
-                this.lines.forEach(line => {
-                    this.linesCacheMain.get(line.name).classList.add('c-opaque');
-                    this.linesCachePrev.get(line.name).classList.add('c-opaque');
-                });
-            });
-            return;
-        }
-
-        const map = new Map();
-
-        this.lines.forEach(line => {
-            const path = line.generatePath(this.xAxis, this.chartHeight, scale);
-            map.set(line.name, path);
-        });
-
-        window.requestAnimationFrame(() => {
-            map.forEach((path, name) => {
-                let line = this.linesCacheMain.get(name);
-                let method = this.lines.get(name).disabled ? 'add' : 'remove';
-
-                line.setAttribute('d', path);
-                line.classList[method]('c-opaque');
-
-                line = this.linesCachePrev.get(name);
-                line.setAttribute('d', path);
-                line.classList[method]('c-opaque');
-            });
-        });
-    }
-
-    updateLegend(dir) {
-        const
-            scale = this.getScale(),
-            bufferPx = this.labelsInitialPosBuffer;
-
+    updateLegend({ direction: dir, scale }) {
         if (scale === this.oldScale || scale === 0) { return; }
 
         const
+            bufferPx = this.labelsInitialPosBuffer,
             currentItems = Array.from(this.legendCanvas.children).slice(2),
             newItems = this.createLinesAndLabels(dir === 'in' ? this.chartHeight + bufferPx : 0).slice(2);
 
@@ -594,47 +563,95 @@ export default class Plot {
         this.labelsAxis.setLeft(totalWidth / scale * (left / totalWidth));
 
         if (!this.linesCacheMain.size) {
-            this.drawLines();
+            this.scaleChart({ left, right: 0, width: totalWidth });
         }
     }
 
-    drawLines() {
+    createBuffered(fn, scope, timeout) {
+        fn = fn.bind(scope);
+        const bfn = (...args) => {
+            bfn.args = args;
+            if (bfn.timer) return;
+            bfn.timer = setTimeout(() => {
+                fn(...bfn.args);
+                bfn.timer = null;
+            }, timeout);
+        };
+        return bfn;
+    }
+
+    scaleChart(config, direction, toggle) {
+        config = config || this.lastConfig;
+        this.lastConfig = config;
+
+        let { left, right, width } = config,
+            from = Math.floor(left / width * this.columns.length),
+            to = Math.ceil((1 - right / width) * this.columns.length),
+            overallMax = this.getMaxValue(),
+            min = overallMax,
+            max = 0,
+            height = this.chartHeight - this.previewHeight,
+            overallScale = height / overallMax,
+            scale;
+
+        // find min/max
+        this.lines.forEach(line => {
+            if (!line.disabled) {
+                let [mn, mx] = line.getMinMaxValue(from, to);
+                min = Math.min(min, mn);
+                max = Math.max(max, mx);
+            }
+        });
+
+        scale = height / max;
+
+        direction = direction || this.currentScale > scale ? 'out' : 'in';
+        this.currentScale = scale;
+
         const
-            height = this.chartHeight,
-            iterator = this.lines.values(),
-            xAxis = this.buildXAxis(),
+            mainCache = this.linesCacheMain,
+            previewCache = this.linesCachePrev,
             mainCanvas = this.mainCanvas,
             previewCanvas = this.previewCanvas,
-            scale = this.getScale() || 1;
+            updatePreview = previewCache.size === 0 || toggle,
+            axis = this.xAxis;
 
-        let result = iterator.next();
+        this.lines.forEach(line => {
+            let name = line.name,
+                method = line.disabled || max === 0 ? 'add' : 'remove';
 
-        while (!result.done) {
-            const
-                line = result.value,
-                name = line.name,
-                lineEl = line.render(xAxis, height, scale);
+            if (updatePreview) {
+                if (previewCache.has(name)) {
+                    let el = previewCache.get(name);
+                    if (max !== 0) {
+                        el.setAttribute('d', line.generatePath(axis, height, overallScale));
+                    }
+                    el.classList[method](opaqCls);
+                }
+                else {
+                    let el = line.render(axis, height, overallScale);
+                    previewCache.set(name, previewCanvas.appendChild(el));
+                }
+            }
 
-            if (this.linesCacheMain.has(name)) {
-                this.linesCacheMain.get(name).setAttribute('points', lineEl.getAttribute('points'));
+            if (mainCache.has(name)) {
+                let el = mainCache.get(name);
+                if (max !== 0) {
+                    el.setAttribute('d', line.generatePath(axis, this.chartHeight, scale));
+                }
+                el.classList[method](opaqCls);
             }
             else {
-                this.linesCacheMain.set(name, mainCanvas.appendChild(lineEl.cloneNode(true)));
+                let el = line.render(axis, this.chartHeight, overallScale);
+                mainCache.set(name, mainCanvas.appendChild(el));
             }
+        });
 
-            if (this.linesCachePrev.has(name)) {
-                this.linesCachePrev.get(name).setAttribute('points', lineEl.getAttribute('points'));
-            }
-            else {
-                this.linesCachePrev.set(name, previewCanvas.appendChild(lineEl.cloneNode(true)));
-            }
-
-            result = iterator.next();
+        if (max !== 0) {
+            this.updateLegend({ direction, scale });
         }
-
-        // Cache x axis for future updates
-        this.xAxis = xAxis;
     }
+
     //#endregion
 
     render() {
@@ -673,6 +690,7 @@ export default class Plot {
         element.querySelector('.c-preview').appendChild(previewCanvas);
 
         mainCanvas.addEventListener('pointerdown', this.onCanvasClick.bind(this));
+        tipCanvas.addEventListener('pointerdown', this.onCanvasClick.bind(this));
 
         this.createLabelsAxis();
         this.createButtons();
