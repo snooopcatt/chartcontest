@@ -6,12 +6,21 @@ xhr.onreadystatechange = function () {
     if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
         const charts = JSON.parse(xhr.responseText);
         
-        let plot = new Plot({
-            chart : charts[0],
-            appendTo : 'main',
-            name: 'Followers'
+        charts.map(c => {
+            let plot = new Plot({
+                chart : c,
+                appendTo : 'main',
+                name: 'Followers'
+            });
+            plot.render();
         });
-        plot.render();
+
+        // let plot = new Plot({
+        //     chart : charts[charts.length - 1],
+        //     appendTo : 'main',
+        //     name: 'Followers'
+        // });
+        // plot.render();
     }
 };
 

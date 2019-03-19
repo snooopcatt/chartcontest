@@ -415,7 +415,14 @@ export default class Plot {
             x = this.xAxis[index],
             clientX = (x - scrollLeft) * hScale;
 
-        this.showTipAt(clientX, index);
+        let wasFired = false;
+
+        this.mainCanvas.addEventListener('pointermove', () => wasFired = true, { once: true });
+
+        setTimeout(() => {
+            if (wasFired) this.hideTip()
+            else this.showTipAt(clientX, index);
+        }, 100);
     }
 
     hideTip() {
@@ -488,7 +495,7 @@ export default class Plot {
 
         let height = this.chartHeight - this.previewHeight;
 
-        return (height / maxY).toFixed(2);
+        return (height / maxY).toFixed(10);
     }
     /**
      * @param {Line} line 
