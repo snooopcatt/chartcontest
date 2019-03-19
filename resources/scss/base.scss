@@ -1,6 +1,7 @@
 @import './vars.scss';
 @import './plot.scss';
 @import './button.scss';
+@import './tip.scss';
 
 #main {
     width: 100%;
@@ -28,6 +29,10 @@
 
 .c-night {
     background-color: $night-bg-color;
+
+    .c-tooltip {
+        background-color: $night-bg-color;
+    }
 
     .c-circle-mask {
         fill: $night-bg-color;

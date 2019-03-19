@@ -2,6 +2,7 @@
 import Line from './Line.js';
 import PreviewDrag from './PreviewDrag.js';
 import LabelsAxis from './Labels.js';
+import { formatDate } from './Utils.js';
 
 //#region Debug
 // function renderIcon(container) {
@@ -27,6 +28,9 @@ import LabelsAxis from './Labels.js';
 //     container.insertBefore(el, this.container.firstElementChild);
 // }
 //#endregion
+
+const hideCls = 'c-hide',
+    nvsblCls = 'c-hidden';
 
 export default class Plot {
     static generateId() {
@@ -92,6 +96,14 @@ export default class Plot {
     addLine(line) {
         this.lines.set(line.name, line);
         this.maxYValues.set(line.name, line.maxYValue);
+    }
+
+    get tooltipEl() {
+        if (this._tooltipEl) {
+            return this._tooltipEl;
+        }
+
+        return this._tooltipEl = this.element.querySelector('.c-tooltip');
     }
 
     //#region Chart dimensions
@@ -249,11 +261,11 @@ export default class Plot {
             cls: 'c-tip-canvas'
         });
 
-        canvas.innerHTML += `<line class="c-hide c-anchor-line" y1="0" y2="${this.chartHeight}"/>`;
-        
+        canvas.innerHTML += `<line class="${hideCls} c-anchor-line" y1="0" y2="${this.chartHeight}"/>`;
+
         this.lines.forEach(line => {
-            canvas.innerHTML += `<circle class="c-hide" name="${line.name}" fill="${line.color}" r="5"/>
-            <circle class="c-hide c-circle-mask" name="${line.name}" r="3" />`;
+            canvas.innerHTML += `<circle class="${hideCls}" name="${line.name}" fill="${line.color}" r="5"/>
+            <circle class="${hideCls} c-circle-mask" name="${line.name}" r="3" />`;
         });
 
         return canvas;
@@ -365,11 +377,7 @@ export default class Plot {
 
     //#region Events
     onStartDrag() {
-        let els = this.tipCanvas.querySelectorAll('*');
-
-        for (let i = 0, l = els.length; i < l; i++) {
-            els[i].classList.add('c-hide');
-        }
+        this.hideTip();
     }
 
     onMove({ left, right, width }) {
@@ -383,6 +391,7 @@ export default class Plot {
             line = this.lines.get(name);
 
         this.toggleLine(line);
+        this.hideTip();
 
         // if (lineEl.classList.contains('c-opaque')) {
         if (line.disabled) {
@@ -397,35 +406,68 @@ export default class Plot {
         const target = e.currentTarget,
             svgWidth = target.viewBox.baseVal.width,
             hScale = target.clientWidth / svgWidth,
-            vScale = this.getScale(),
             scrollLeft = target.viewBox.baseVal.x,
             // experimental feature
             eventX = e.layerX,
             chartX = eventX / hScale + scrollLeft,
             step = this.tickWidth,
             index = Math.round(chartX / step),
-            chartHeight = this.chartHeight,
             x = this.xAxis[index],
             clientX = (x - scrollLeft) * hScale;
 
+        this.showTipAt(clientX, index);
+    }
+
+    hideTip() {
+        let els = this.tipCanvas.querySelectorAll('*');
+
+        for (let i = 0, l = els.length; i < l; i++) {
+            els[i].classList.add(hideCls);
+        }
+
+        this.tooltipEl.classList.add(nvsblCls);
+    }
+
+    showTipAt(clientX, index) {
+        const
+            chartHeight = this.chartHeight,
+            vScale = this.getScale(),
+            tipEl = this.tooltipEl,
+            tipContent = [];
+
         this.lines.forEach(line => {
             if (!line.disabled) {
-                let els = this.tipCanvas.querySelectorAll(`[name="${line.name}"]`);
+                let els = this.tipCanvas.querySelectorAll(`[name="${line.name}"]`),
+                    value = line.points[index];
 
+                // there are two circles
                 for (let i = 0; i < 2; i++) {
                     let el = els[i];
 
                     el.setAttribute('cx', clientX);
-                    el.setAttribute('cy', chartHeight - line.points[index] * vScale);
-                    el.classList.remove('c-hide');
+                    el.setAttribute('cy', chartHeight - value * vScale);
+                    el.classList.remove(hideCls);
                 }
+
+                tipContent.push(`<div style="color:${line.color};"><div>${value}</div><div>${line.name}</div></div>`);
             }
         });
 
         let lineEl = this.tipCanvas.querySelector('line');
-        lineEl.classList.remove('c-hide');
+        lineEl.classList.remove(hideCls);
         lineEl.setAttribute('x1', clientX);
         lineEl.setAttribute('x2', clientX);
+
+        tipEl.classList.remove(nvsblCls);
+        tipEl.querySelector('.title').innerHTML = formatDate(new Date(this.columns[index]), true);
+        const el = tipEl.querySelector('.c-container');
+        el.innerHTML = `${tipContent.join('')}`;
+
+        let tipX = clientX - 5;
+        if (tipX + tipEl.offsetWidth - 10 > this.chartWidth) {
+            tipX = tipX - tipEl.offsetWidth + 10;
+        }
+        tipEl.style.transform = `translateX(${tipX}px)`;
     }
     //#endregion
 
@@ -599,7 +641,12 @@ export default class Plot {
 
         element.innerHTML = `
             <div class="title">${this.name}</div>
-            <div class="c-main"></div>
+            <div class="c-main">
+                <div class="c-tooltip c-hidden">
+                    <div class="title"></div>
+                    <div class="c-container"></div>
+                </div>
+            </div>
             <div class="c-axis"></div>
             <div class="c-preview"></div>
             <div class="c-buttons-container"></div>
@@ -611,9 +658,11 @@ export default class Plot {
             mainCanvas = this.mainCanvas = this.createMainCanvas(),
             tipCanvas = this.tipCanvas = this.createTipCanvas();
 
-        element.querySelector('.c-main').appendChild(legendCanvas);
-        element.querySelector('.c-main').appendChild(mainCanvas);
-        element.querySelector('.c-main').appendChild(tipCanvas);
+        let el = element.querySelector('.c-main');
+        el.appendChild(legendCanvas);
+        el.appendChild(mainCanvas);
+        el.appendChild(tipCanvas);
+
         element.querySelector('.c-preview').appendChild(previewCanvas);
 
         mainCanvas.addEventListener('pointerdown', this.onCanvasClick.bind(this));
