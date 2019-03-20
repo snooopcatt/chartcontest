@@ -1,5 +1,5 @@
 .c-opaque {
-    opacity: 0;
+    opacity: 0 !important;
 }
 
 .c-hide {
@@ -8,6 +8,10 @@
 
 .c-hidden {
     visibility: hidden;
+}
+
+.c-notrans {
+    transition: none !important;
 }
 
 .c-plot {
@@ -46,6 +50,10 @@
         .c-anchor-line {
             stroke-width: 1px;
             stroke: grey;
+        }
+
+        .c-transform-min {
+            transform: translateY(0) !important;
         }
     }
 

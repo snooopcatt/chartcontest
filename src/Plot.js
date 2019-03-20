@@ -31,7 +31,11 @@ import { formatDate } from './Utils.js';
 
 const hideCls = 'c-hide',
     nvsblCls = 'c-hidden',
-    opaqCls = 'c-opaque';
+    opaqCls = 'c-opaque',
+    tmin = 'c-transform-min',
+    tmaxP = 'c-transform-max-p',
+    tmaxN = 'c-transform-max-n',
+    notrans = 'c-notrans';
 
 export default class Plot {
     static generateId() {
@@ -171,7 +175,6 @@ export default class Plot {
     renderLine(config = {}) {
         const lineElement = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         lineElement.setAttribute('class', config.cls || '');
-        lineElement.setAttribute('style', config.style || '');
         lineElement.setAttribute('x1', config.x1);
         lineElement.setAttribute('x2', config.x2);
         lineElement.setAttribute('y1', config.y1);
@@ -180,15 +183,15 @@ export default class Plot {
         return lineElement;
     }
 
-    renderLabel({ x, y, text, cls, style }) {
+    renderLabel({ x, y, text, cls }) {
         const element = document.createElementNS('http://www.w3.org/2000/svg', 'text');
 
         element.setAttribute('x', x);
         element.setAttribute('y', y);
         element.setAttribute('class', cls);
-        element.setAttribute('style', style || '');
 
-        element.innerHTML = text;
+        if (text != null)
+            element.innerHTML = text;
 
         return element;
     }
@@ -204,44 +207,101 @@ export default class Plot {
         return element;
     }
 
-    createLinesAndLabels(startY = 0) {
+    createLinesAndLabels() {
+        let items = [[
+            this.renderLine({
+                x1: 0,
+                x2: this.chartWidth,
+                y1: this.chartHeight,
+                y2: this.chartHeight,
+                cls: `c-anchor-line c-zero`
+            }),
+            this.renderLabel({
+                x: 0,
+                y: this.chartHeight - 10,
+                text: 0,
+                cls: `c-anchor-label c-zero`
+            })
+        ], []];
+
+        for (let i = 1; i < this.anchorCount; i++) {
+            items[1].push(
+                this.renderLine({
+                    x1: 0,
+                    x2: this.chartWidth,
+                    y1: 0,
+                    y2: 0,
+                    cls: `c-anchor-line`
+                }),
+                this.renderLabel({
+                    x: 0,
+                    y: 0,
+                    cls: `c-anchor-label`
+                })
+            );
+        }
+
+        return items;
+    }
+
+    positionLegend({ direction }) {
         let scale = this.currentScale,//this.getScale(),
             height = this.chartHeight - 30,
+            chartHeight = this.chartHeight,
             step = Math.ceil(height / this.anchorCount),
-            adjustedHeight = startY > height ? -this.labelsInitialPosBuffer : this.chartHeight,
-            result = [];
+            // adjustedHeight = startY > height ? -this.labelsInitialPosBuffer : this.chartHeight,
+            zoomIn = direction === 'in',
+            startY = zoomIn ? chartHeight : 0,
+            sign = zoomIn ? -1 : 1;
 
-        [...Array(this.anchorCount).keys()].forEach((i) => {
-            const
+        if (direction === 'none') return;
+
+        let labelsToShow = this.showEvenLabels ? this.labelsEven : this.labelsOdd,
+            labelsToHide = this.showEvenLabels ? this.labelsOdd : this.labelsEven;
+        
+        labelsToShow.forEach((el, index) => {
+            let i = Math.floor(index / 2) + 1,
                 value = i * step,
-                y = adjustedHeight - value - 1;
+                transformY = chartHeight - startY - value;
 
-            result.push(
-                {
-                    el: this.renderLine({
-                        x1: 0,
-                        x2: this.chartWidth,
-                        y1: startY,
-                        y2: startY,
-                        cls: `c-anchor-line c-anchor-line-${i}`,
-                        style: `transform:translateY(0px);opacity:0;`
-                    }),
-                    style: `transform:translateY(${y}px);opacity:1;`
-                },
-                {
-                    el: this.renderLabel({
-                        x: 0,
-                        y: startY,
-                        text: Math.ceil(value / scale),
-                        cls: `c-anchor-label c-anchor-label-${i}`,
-                        style: `transform:translateY(-10px);opacity:0;`
-                    }),
-                    style: `transform:translateY(${y - 10}px);opacity:1;`
-                }
-            );
+            el.classList.add(notrans);
+            el.style.transform = '';
+            [tmaxP, tmaxN, tmin].forEach(cls => el.classList.remove(cls));
+            
+
+            if (el.tagName === 'text') {
+                el.innerHTML = Math.ceil(value / scale);
+                el.setAttribute('y', startY - 10);
+            }
+            else {
+                el.setAttribute('y1', startY);
+                el.setAttribute('y2', startY);
+            }
+            window.requestAnimationFrame(() => {
+                el.classList.remove(notrans);
+                el.style.transform = `translateY(${transformY}px)`;
+                el.classList.remove(opaqCls);
+            });
         });
 
-        return result;
+        let currentY = parseInt(labelsToHide[0].getAttribute('y1')),
+            cls;
+
+        if (currentY !== 0) {
+            if (zoomIn) cls = tmaxN;
+            else cls = tmin;
+        }
+        else {
+            if (zoomIn) cls = tmin;
+            else cls = tmaxP;
+        }
+
+        labelsToHide.forEach(el => {
+            el.classList.add(cls);
+            el.classList.add(opaqCls);
+        });
+
+        this.showEvenLabels = !this.showEvenLabels;
     }
 
     createLegendCanvas() {
@@ -253,15 +313,23 @@ export default class Plot {
             cls: 'c-legend-canvas'
         });
 
-        const items = this.createLinesAndLabels();
+        const [zero, items] = this.createLinesAndLabels();
 
-        items.forEach(item => {
-            item.el.setAttribute('style', item.style);
-            canvas.appendChild(item.el);
+        zero.forEach(item => {
+            canvas.appendChild(item);
         });
 
-        this.zeroLineTransform = items[0].el.style.transform;
-        this.zeroLabelTransform = items[1].el.style.transform;
+        this.labelsOdd = items.map(item => canvas.appendChild(item));
+        this.labelsEven = items.map(item => canvas.appendChild(item.cloneNode(true)));
+        this.showEvenLabels = false;
+
+        // add rule for every chart so far
+        const styleEl = document.getElementById('appcss');
+        styleEl.sheet.insertRule(`.${tmaxP} { transform: translateY(${this.chartHeight}px) !important; }`);
+        styleEl.sheet.insertRule(`.${tmaxN} { transform: translateY(-${this.chartHeight}px) !important; }`);
+
+        // this.zeroLineTransform = items[0].el.style.transform;
+        // this.zeroLabelTransform = items[1].el.style.transform;
 
         return canvas;
     }
@@ -512,36 +580,14 @@ export default class Plot {
         let prevMaxY = this.getMaxValue();
         line.disabled = !line.disabled;
 
-        let direction = prevMaxY > this.getMaxValue() ? 'in' : 'out';
+        let maxY = this.getMaxValue(),
+            direction;
+
+        if (prevMaxY > maxY) direction = 'in';
+        else if (prevMaxY < maxY) direction = 'out';
+        else direction = 'none';
 
         this.scaleChart(null, direction, true);
-    }
-
-    updateLegend({ direction: dir, scale }) {
-        if (scale === this.oldScale || scale === 0) { return; }
-
-        const
-            bufferPx = this.labelsInitialPosBuffer,
-            currentItems = Array.from(this.legendCanvas.children).slice(2),
-            newItems = this.createLinesAndLabels(dir === 'in' ? this.chartHeight + bufferPx : 0).slice(2);
-
-        this.oldScale = scale;
-
-        // At first append elements and then change style to enable animations
-        newItems.forEach(i => this.legendCanvas.appendChild(i.el));
-
-        window.requestAnimationFrame(() => {
-            currentItems.forEach(item => {
-                item.setAttribute('style', 'transform:translateY(0);opacity:0;');
-                item.addEventListener('transitionend', () => {
-                    item.remove();
-                });
-            });
-
-            newItems.forEach(i => {
-                i.el.setAttribute('style', i.style);
-            });
-        });
     }
 
     /**
@@ -605,7 +651,12 @@ export default class Plot {
 
         scale = height / max;
 
-        direction = direction || this.currentScale > scale ? 'out' : 'in';
+        if (!direction) {
+            if (this.currentScale > scale) direction = 'out';
+            else if (this.currentScale < scale) direction = 'in';
+            else direction = 'none';
+        }
+
         this.currentScale = scale;
 
         const
@@ -648,7 +699,8 @@ export default class Plot {
         });
 
         if (max !== 0) {
-            this.updateLegend({ direction, scale });
+            this.positionLegend({ direction, scale });
+            // this.updateLegend({ direction, scale });
         }
     }
 

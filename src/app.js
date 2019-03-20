@@ -14,13 +14,6 @@ xhr.onreadystatechange = function () {
             });
             plot.render();
         });
-
-        // let plot = new Plot({
-        //     chart : charts[charts.length - 1],
-        //     appendTo : 'main',
-        //     name: 'Followers'
-        // });
-        // plot.render();
     }
 };
 
