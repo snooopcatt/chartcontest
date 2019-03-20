@@ -251,8 +251,7 @@ export default class Plot {
             step = Math.ceil(height / this.anchorCount),
             // adjustedHeight = startY > height ? -this.labelsInitialPosBuffer : this.chartHeight,
             zoomIn = direction === 'in',
-            startY = zoomIn ? chartHeight : 0,
-            sign = zoomIn ? -1 : 1;
+            startY = zoomIn ? chartHeight : 0;
 
         if (direction === 'none') return;
 
